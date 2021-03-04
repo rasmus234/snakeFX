@@ -4,10 +4,16 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import sun.plugin.javascript.navig.Anchor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class Board extends Application {
 
     public static boolean addTail = false;
-    public static int score;
+    public static SimpleIntegerProperty score = new SimpleIntegerProperty(0);
     public static int foodX;
     public static int foodY;
     public static SimpleIntegerProperty windowWidth = new SimpleIntegerProperty(900);
@@ -38,17 +44,38 @@ public class Board extends Application {
         canvas.heightProperty().bind(gameHeight);
         canvas.widthProperty().bind(gameWidth);
         GraphicsContext gc = canvas.getGraphicsContext2D();
+
+        AnchorPane pane = new AnchorPane();
+        Text scoreField = new Text("SCORE:");
+        Text scoreNumber = new Text();
+        scoreField.setScaleX(2);
+        scoreField.setScaleY(2);
+        scoreNumber.setScaleX(2);
+        scoreNumber.setScaleY(2);
+        scoreNumber.textProperty().bind(score.asString());
+        scoreField.setFill(Color.RED);
+
+        scoreNumber.setFill(Color.RED);
+        scoreNumber.setLayoutX(root.getWidth()/2+70);
+        scoreNumber.setLayoutY(40);
+
+        scoreField.setLayoutX(root.getWidth()/2);
+        scoreField.setLayoutY(40);
+        pane.getChildren().addAll(scoreField,scoreNumber);
+        root.setTop(pane);
+
         //set canvas background to black
         gc.setFill(Color.BLACK);
         gc.fillRect(0, 0, gameWidth.get(), gameHeight.get());
 
         //create initial snake and draw it
-        Snake snake = new Snake( new BodyPart(1, 4), new BodyPart(1, 3), new BodyPart(1, 2));
+        Snake snake = new Snake(new BodyPart(1, 4), new BodyPart(1, 3), new BodyPart(1, 2));
         for (BodyPart bodyPart : snake.getBodyParts()) {
-            drawBody(gc,bodyPart);
+            drawBody(gc, bodyPart);
         }
+
         //initial food
-        newFood(gc);
+        newFood();
         //get current direction
         scene.addEventFilter(KeyEvent.KEY_PRESSED, key -> {
             switch (key.getCode()) {
@@ -77,18 +104,24 @@ public class Board extends Application {
             public void handle(long now) {
                 if (now - lastTick > 1000000000 / gameSpeed.get()) {
 
+
                     List<BodyPart> currentSnake = new ArrayList<>(snake.getBodyParts());
-                    int currentScore = score;
+                    int currentScore = score.get();
 
                     BodyPart newHead = moveSnake(snake, gc);
                     if (checkCollisions(newHead, currentSnake, gc)) {
+                        gc.setFill(Color.RED);
+                        gc.setFont(Font.font(50));
+                        gc.fillText("GAME OVER",gameWidth.get()/2,gameHeight.get()/2);
                         this.stop();
                     }
-                    if (score > currentScore) {
+                    if (score.get() > currentScore) {
                         snake.getBodyParts().add(currentSnake.get(currentSnake.size() - 1));
-                        gameSpeed.set(gameSpeed.get() + 1);
+                        gameSpeed.set(gameSpeed.get() + tileSize.get()/10);
+                        System.out.println(score);
                     }
-                    System.out.println(score);
+                    gc.setFill(Color.LIGHTBLUE);
+                    gc.fillOval(foodX*tileSize.get(),foodY*tileSize.get(),tileSize.get(),tileSize.get());
                     lastTick = now;
                 }
             }
@@ -96,6 +129,7 @@ public class Board extends Application {
 
         primaryStage.setMinHeight(windowHeight.get());
         primaryStage.setMinWidth(windowWidth.get());
+        primaryStage.setTitle("Best Snake");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -105,7 +139,7 @@ public class Board extends Application {
         int newY = newHead.getY() * tileSize.get();
         int gameWidth = Board.gameWidth.get();
         int gameHeight = Board.gameHeight.get();
-        if (newX > gameWidth || newX < 0 || newY > gameHeight || newY < 0) {
+        if (newX >= gameWidth || newX < 0 || newY >= gameHeight || newY < 0) {
             return true;
         }
         for (BodyPart bodyPart : currentSnake) {
@@ -114,9 +148,9 @@ public class Board extends Application {
             }
         }
         if (newHead.getY() == foodY && newHead.getX() == foodX) {
-            score++;
+            score.set(score.get()+1);
             addTail = true;
-            newFood(gc);
+            newFood();
 
         }
         return false;
@@ -147,11 +181,11 @@ public class Board extends Application {
         gc.setFill(Color.PINK);
         drawBody(gc, newHead);
 
-
         gc.setFill(Color.BLACK);
         BodyPart tail = snake.getTail();
         drawBody(gc, tail);
         snake.removeTail();
+
         return newHead;
     }
 
@@ -161,12 +195,10 @@ public class Board extends Application {
         }
     }
 
-    public void newFood(GraphicsContext gc) {
-
-        Board.foodX = ThreadLocalRandom.current().nextInt(tileSize.get());
-        Board.foodY = ThreadLocalRandom.current().nextInt(tileSize.get());
-
-        gc.setFill(Color.LIGHTBLUE);
-        gc.fillOval(foodX * tileSize.get(), foodY * tileSize.get(), tileSize.get(), tileSize.get());
+    public void newFood() {
+        Board.foodX = ThreadLocalRandom.current().nextInt(gameWidth.get()/tileSize.get());
+        Board.foodY = ThreadLocalRandom.current().nextInt(gameHeight.get()/tileSize.get());
     }
+
+
 }
